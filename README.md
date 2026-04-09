@@ -21,14 +21,19 @@
 1. 找 [@BotFather](https://t.me/BotFather)，`/newbot` 创建 Bot，获得 **Bot Token**
 2. 给 Bot 发一条消息，然后访问 `https://api.telegram.org/bot<TOKEN>/getUpdates` 获取 **Chat ID**
 
-### 3. 配置 Secrets
+### 3. 配置 Environments（推荐）
 
-在仓库 **Settings → Secrets and variables → Actions** 中添加：
+在仓库 **Settings → Environments** 创建两个环境：
+
+- `test`：测试通知环境
+- `prod`：正式通知环境（建议开启 Required reviewers）
+
+进入每个 Environment，添加同名 Secrets：
 
 | Secret | 说明 |
 |--------|------|
 | `TG_BOT_TOKEN` | Telegram Bot Token |
-| `TG_CHAT_ID` | 接收通知的 Chat ID（个人 / 群组 / 频道均可） |
+| `TG_CHAT_ID` | 接收通知的 Chat ID（建议 test/prod 分开） |
 
 > `GITHUB_TOKEN` 由 Actions 自动提供，无需手动配置。如需提高 API 限额可用 PAT。
 
@@ -52,8 +57,8 @@ subscriptions:
 
 ### 5. 触发运行
 
-- 等待 cron 自动运行
-- 或前往 **Actions → Check & Notify → Run workflow** 手动触发
+- 等待 cron 自动运行（默认使用 `test` 环境）
+- 或前往 **Actions → Check & Notify → Run workflow** 手动触发并选择 `target_env`（`test` / `prod`）
 
 ---
 
@@ -104,6 +109,14 @@ subscriptions:
 - 每次运行后，将已推送事件的 ID 写入 `state.json`
 - Workflow 最后一步自动将 `state.json` 提交回仓库
 - 首次运行仅推送最新 5 条，避免消息轰炸
+
+## Environments 使用说明
+
+- Workflow 的 job 绑定到 GitHub Environment，名称由触发方式决定：
+- `schedule`：固定使用 `test`
+- `workflow_dispatch`：使用你在 `target_env` 输入里选择的环境
+- 只有绑定后，才会读取该 Environment 下的 `TG_BOT_TOKEN` 和 `TG_CHAT_ID`
+- 如果 `prod` 配置了审批人，运行到 `prod` 时会先等待审批再继续
 
 ## 调整检查频率
 

@@ -4,7 +4,16 @@ on:
   schedule:
     # 每 30 分钟检查一次（可自行调整）
     - cron: "*/30 * * * *"
-  workflow_dispatch:     # 支持手动触发
+  workflow_dispatch: # 支持手动触发并选择环境
+    inputs:
+      target_env:
+        description: "选择运行环境（对应 GitHub Environments）"
+        required: true
+        default: test
+        type: choice
+        options:
+          - test
+          - prod
 
 # 需要写入权限，用于提交 state.json
 permissions:
@@ -13,6 +22,8 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # 定时任务默认使用 test；手动触发可选择 test/prod
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'test' }}
 
     steps:
       - name: Checkout
