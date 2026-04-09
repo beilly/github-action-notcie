@@ -27,7 +27,7 @@ defaults:
 
 # ── 订阅列表 ──
 subscriptions:
-  - repo: nicevoice/github-action-notice   # 示例仓库
+  - repo: razorpay/ifsc   # ifsc
     mode: release
     include_prerelease: false
     # template: 可覆盖全局模板
