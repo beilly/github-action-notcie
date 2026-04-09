@@ -189,6 +189,8 @@ def check_subscription(sub: dict, defaults: dict, state: dict) -> dict:
 
     print(f"\n── 检查 {repo} [{mode}] ──")
 
+    is_first_run = state_key not in state
+
     # 获取事件列表
     if mode == "release":
         items = fetch_releases(repo, sub.get("include_prerelease", False))
@@ -208,11 +210,15 @@ def check_subscription(sub: dict, defaults: dict, state: dict) -> dict:
         print("  没有新事件")
         return {}
 
-    # 只推送最新的 5 条，防止首次运行时轰炸
-    new_items = new_items[:5]
-    print(f"  发现 {len(new_items)} 条新事件")
+    # 首次运行时仅推送最新版本；后续运行推送所有新版本
+    if is_first_run:
+        push_items = new_items[:1]  # 只推最新的那个
+        print("  首次运行，推送最新版本")
+    else:
+        push_items = new_items  # 推送所有新版本
+        print(f"  发现 {len(new_items)} 条新事件")
 
-    for item in reversed(new_items):  # 按时间正序推送
+    for item in reversed(push_items):  # 按时间正序推送
         variables = {"repo": repo, **item}
         text = render_template(template, variables)
         if send_telegram(text):
