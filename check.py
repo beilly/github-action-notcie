@@ -210,13 +210,13 @@ def check_subscription(sub: dict, defaults: dict, state: dict) -> dict:
         print("  没有新事件")
         return {}
 
-    # 首次运行时仅推送最新版本；后续运行推送所有新版本
+    # 首次和后续运行都只推送最新版本
     if is_first_run:
         push_items = new_items[:1]  # 只推最新的那个
         print("  首次运行，推送最新版本")
     else:
-        push_items = new_items  # 推送所有新版本
-        print(f"  发现 {len(new_items)} 条新事件")
+        push_items = new_items[:1]  # 后续也只推最新的那个
+        print(f"  发现 {len(new_items)} 条新事件，仅推送最新 1 条")
 
     for item in reversed(push_items):  # 按时间正序推送
         variables = {"repo": repo, **item}
