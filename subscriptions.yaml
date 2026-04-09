@@ -1,0 +1,40 @@
+# GitHub Release / Tag / Commit 订阅配置
+# ─────────────────────────────────────────
+# mode: release | tag | commit
+#   release — 仅监听 GitHub Release（含 pre-release 可选）
+#   tag     — 监听所有新 tag（不一定有 Release）
+#   commit  — 监听默认分支的新 commit
+#
+# template: 自定义 Telegram 消息模板，可用变量见 README
+#   不填则使用全局默认模板
+
+# ── 全局默认消息模板 ──
+defaults:
+  templates:
+    release: |
+      🚀 *{repo}* 发布新版本 [{tag}]({url})
+
+      {body}
+    tag: |
+      🏷️ *{repo}* 新标签 `{tag}`
+
+      [查看]({url})
+    commit: |
+      📝 *{repo}* 新提交 `{branch}`
+
+      `{sha_short}` {message}
+      [查看]({url})
+
+# ── 订阅列表 ──
+subscriptions:
+  - repo: nicevoice/github-action-notice   # 示例仓库
+    mode: release
+    include_prerelease: false
+    # template: 可覆盖全局模板
+
+  # - repo: some-org/another-repo
+  #   mode: tag
+
+  # - repo: user/repo
+  #   mode: commit
+  #   branch: main          # commit 模式可指定分支，默认为仓库默认分支
