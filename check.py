@@ -26,6 +26,9 @@ TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
 
 GITHUB_API = "https://api.github.com"
 
+# Telegram MarkdownV2 需要转义的特殊字符。
+TG_MD_V2_SPECIALS = "_[]()~`>#+-=|{}.!*"
+
 
 # ───────────────────── 工具函数 ─────────────────────
 
@@ -53,29 +56,59 @@ def save_state(state: dict):
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def send_telegram(text: str):
+def send_telegram(text: str) -> bool:
     if not TG_BOT_TOKEN or not TG_CHAT_ID:
         print("[WARN] TG_BOT_TOKEN / TG_CHAT_ID 未设置，跳过推送")
-        return
+        return False
+
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
+    text = text.replace("\x00", "")
     payload = {
         "chat_id": TG_CHAT_ID,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "MarkdownV2",
         "disable_web_page_preview": True,
     }
+
     resp = requests.post(url, json=payload, timeout=30)
-    if not resp.ok:
-        print(f"[ERROR] Telegram 推送失败: {resp.status_code} {resp.text}")
-    else:
-        print(f"[OK] Telegram 推送成功")
+    if resp.ok:
+        print("[OK] Telegram 推送成功")
+        return True
+
+    # release body 常含特殊字符，Markdown 解析失败时降级为纯文本重试。
+    if "can't parse entities" in (resp.text or "").lower():
+        fallback_payload = {
+            "chat_id": TG_CHAT_ID,
+            "text": text,
+            "disable_web_page_preview": True,
+        }
+        fallback_resp = requests.post(url, json=fallback_payload, timeout=30)
+        if fallback_resp.ok:
+            print("[OK] Telegram 推送成功（fallback: plain text）")
+            return True
+
+        print(f"[ERROR] Telegram fallback 推送失败: {fallback_resp.status_code} {fallback_resp.text}")
+        return False
+
+    print(f"[ERROR] Telegram 推送失败: {resp.status_code} {resp.text}")
+    return False
+
+
+def escape_markdown_v2(value: str) -> str:
+    text = str(value or "")
+    text = text.replace("\\", "\\\\")
+    for ch in TG_MD_V2_SPECIALS:
+        text = text.replace(ch, f"\\{ch}")
+    return text
 
 
 def render_template(template: str, variables: dict) -> str:
     """安全地渲染模板，未匹配的变量保持原样。"""
     text = template
     for key, value in variables.items():
-        text = text.replace(f"{{{key}}}", str(value))
+        # 用户输入和 release body 等动态内容统一做 MarkdownV2 转义。
+        safe_value = escape_markdown_v2(value)
+        text = text.replace(f"{{{key}}}", safe_value)
     return text.strip()
 
 
@@ -172,7 +205,7 @@ def check_subscription(sub: dict, defaults: dict, state: dict) -> dict:
 
     new_items = [i for i in items if i["id"] not in seen]
     if not new_items:
-        print(f"  没有新事件")
+        print("  没有新事件")
         return {}
 
     # 只推送最新的 5 条，防止首次运行时轰炸
@@ -182,8 +215,8 @@ def check_subscription(sub: dict, defaults: dict, state: dict) -> dict:
     for item in reversed(new_items):  # 按时间正序推送
         variables = {"repo": repo, **item}
         text = render_template(template, variables)
-        send_telegram(text)
-        seen.add(item["id"])
+        if send_telegram(text):
+            seen.add(item["id"])
 
     return {state_key: list(seen)}
 
